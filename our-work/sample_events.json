@@ -1,0 +1,668 @@
+[
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "739ea5d2-30db-5302-88c2-7cb3245e623e"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "pg-cdc-source",
+      "facets": {
+        "confluent_connector": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "cluster_id": "lkc-xyz789",
+          "environment_id": "env-abc123"
+        }
+      }
+    },
+    "inputs": [],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "orders",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "orders",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/orders/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      },
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "shipments",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "shipments",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/shipments/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "7f3b77b8-14e4-5fdf-9e58-88578c5491dc"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "mysql-cdc-source",
+      "facets": {
+        "confluent_connector": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "cluster_id": "lkc-xyz789",
+          "environment_id": "env-abc123"
+        }
+      }
+    },
+    "inputs": [],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "customers",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "customers",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/customers/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "ae7b136f-b84d-5a59-b99f-0a4de573f75f"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "CSAS_ENRICHED_ORDERS_0",
+      "facets": {
+        "sql": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SQLJobFacet.json",
+          "query": "CREATE STREAM enriched_orders AS\nSELECT o.order_id, o.product, o.quantity, o.price,\n       c.name AS customer_name, c.email, c.tier\nFROM orders o\n  JOIN customers c\n    ON o.customer_id = c.id\nEMIT CHANGES;"
+        },
+        "documentation": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DocumentationJobFacet.json",
+          "description": "ksqldb_query: Enrich Orders (ksqlDB)"
+        }
+      }
+    },
+    "inputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "orders",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "orders",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/orders/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      },
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "customers",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "customers",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/customers/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "enriched_orders",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "enriched_orders",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/enriched_orders/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "3a485151-906f-53eb-a4cb-79902a991130"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "CTAS_ORDER_STATUS_0",
+      "facets": {
+        "sql": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SQLJobFacet.json",
+          "query": "CREATE TABLE order_status AS\nSELECT order_id,\n       LATEST_BY_OFFSET(status) AS current_status,\n       COUNT(*) AS update_count\nFROM orders\nGROUP BY order_id\nEMIT CHANGES;"
+        },
+        "documentation": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DocumentationJobFacet.json",
+          "description": "ksqldb_query: Order Status Table (ksqlDB)"
+        }
+      }
+    },
+    "inputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "orders",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "orders",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/orders/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "order_status_updates",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "order_status_updates",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/order_status_updates/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "36e1b191-3fe5-580c-8cb3-407e85d70a73"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/default",
+      "name": "orders-avro-transform",
+      "facets": {
+        "sql": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SQLJobFacet.json",
+          "query": "INSERT INTO orders_avro\nSELECT order_id, customer_id, product,\n       quantity, price, currency,\n       status, created_at\nFROM orders;"
+        },
+        "documentation": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DocumentationJobFacet.json",
+          "description": "flink_job: Orders Avro Transform (Flink)"
+        }
+      }
+    },
+    "inputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "orders",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "orders",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/orders/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "orders_avro",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "orders_avro",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/orders_avro/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "1b159c0f-04fd-57ff-b85b-dc7c0176ae20"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/default",
+      "name": "order-status-aggregator",
+      "facets": {
+        "sql": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SQLJobFacet.json",
+          "query": "INSERT INTO order_status_updates\nSELECT order_id, status, updated_at,\n       COUNT(*) OVER (PARTITION BY order_id) AS status_count\nFROM orders\nWHERE status IS NOT NULL;"
+        },
+        "documentation": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DocumentationJobFacet.json",
+          "description": "flink_job: Order Status Aggregator (Flink)"
+        }
+      }
+    },
+    "inputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "orders",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "orders",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/orders/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "order_status_updates",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "order_status_updates",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/order_status_updates/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "0aa545c4-b077-526b-9ea4-f9003b1ef294"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "s3-sink",
+      "facets": {
+        "confluent_connector": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "cluster_id": "lkc-xyz789",
+          "environment_id": "env-abc123"
+        }
+      }
+    },
+    "inputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "orders_avro",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "orders_avro",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/orders_avro/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": [],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "46f9a1c5-f8c1-5b25-86d2-03e209f83a51"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "elasticsearch-sink",
+      "facets": {
+        "confluent_connector": {
+          "_producer": "https://github.com/takabayashi/lineage-bridge",
+          "cluster_id": "lkc-xyz789",
+          "environment_id": "env-abc123"
+        }
+      }
+    },
+    "inputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "enriched_orders",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "enriched_orders",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/enriched_orders/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": [],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "3dea18a0-226c-52ae-a27e-8adc2d9d47d9"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "orders-processing-cg",
+      "facets": {}
+    },
+    "inputs": [],
+    "outputs": [],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "d06a56f0-8276-5d6e-9cd6-706170819a91"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "analytics-cg",
+      "facets": {}
+    },
+    "inputs": [],
+    "outputs": [],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "fd896844-f664-5e16-812c-289447c3b5ad"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "shipment-tracker-cg",
+      "facets": {}
+    },
+    "inputs": [],
+    "outputs": [],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "fef4b0a6-7f4e-5305-8332-eb78cddc3435"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "flink-orders-consumer",
+      "facets": {}
+    },
+    "inputs": [],
+    "outputs": [],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "20b7a35f-f7aa-5377-a269-b65ee18d5ec6"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "_identity_payments"
+    },
+    "inputs": [],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "payments",
+        "facets": {
+          "dataSource": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DataSourceDatasetFacet.json",
+            "name": "payments",
+            "uri": "https://confluent.cloud/environments/env-abc123/clusters/lkc-xyz789/topics/payments/overview"
+          },
+          "confluent_kafka": {
+            "_producer": "https://github.com/takabayashi/lineage-bridge",
+            "cluster_id": "lkc-xyz789",
+            "environment_id": "env-abc123",
+            "replication_factor": 3,
+            "tags": [
+              "kafka"
+            ]
+          }
+        }
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "f5e06d66-addf-5c86-a63a-39eb93bb7ae2"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "_identity_lkc-xyz789.orders_avro"
+    },
+    "inputs": [],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "lkc-xyz789.orders_avro",
+        "facets": {}
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "96b126a0-f383-5c3f-aff5-20fa23be1657"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "_identity_lkc-xyz789.payments"
+    },
+    "inputs": [],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "lkc-xyz789.payments",
+        "facets": {}
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  },
+  {
+    "eventTime": "2026-08-19T08:42:01.945127Z",
+    "eventType": "COMPLETE",
+    "run": {
+      "runId": "437bb95c-981a-5cdd-84d3-1113bb69a3a3"
+    },
+    "job": {
+      "namespace": "confluent://env-abc123/lkc-xyz789",
+      "name": "_identity_lkc-xyz789.enriched_orders"
+    },
+    "inputs": [],
+    "outputs": [
+      {
+        "namespace": "confluent://env-abc123/lkc-xyz789",
+        "name": "lkc-xyz789.enriched_orders",
+        "facets": {}
+      }
+    ],
+    "producer": "https://github.com/takabayashi/lineage-bridge",
+    "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"
+  }
+]

@@ -27,6 +27,8 @@ _PROVIDER_TO_CATALOG_TYPE: dict[PushProviderName, str] = {
     "aws_glue": "AWS_GLUE",
     "google": "GOOGLE_DATA_LINEAGE",
     "datazone": "AWS_DATAZONE",
+    "openlineage": "OPENLINEAGE_HTTP",
+    "watsonx": "WATSONX",
 }
 
 PUSH_PROVIDERS: tuple[PushProviderName, ...] = tuple(_PROVIDER_TO_CATALOG_TYPE)
@@ -68,6 +70,20 @@ def _provider_for(req_provider: PushProviderName, settings: Settings):
             domain_id=settings.aws_datazone_domain_id,
             project_id=settings.aws_datazone_project_id,
             region=settings.aws_region,
+        )
+    if catalog_type == "OPENLINEAGE_HTTP":
+        from lineage_bridge.catalogs.openlineage_http import OpenLineageHTTPProvider
+
+        return OpenLineageHTTPProvider(
+            endpoint=settings.openlineage_endpoint,
+            auth_token=settings.openlineage_auth_token,
+        )
+    if catalog_type == "WATSONX":
+        from lineage_bridge.catalogs.watsonx import WatsonxProvider
+
+        return WatsonxProvider(
+            host=settings.watsonx_host,
+            api_key=settings.watsonx_api_key,
         )
     raise NotImplementedError(
         f"Push dispatch not wired for catalog_type={catalog_type!r}; "

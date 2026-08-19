@@ -130,6 +130,24 @@ class Settings(BaseSettings):
         description="GCP location for Data Lineage API (e.g. us, us-central1)",
     )
 
+    openlineage_endpoint: str | None = Field(
+        default=None,
+        description="OpenLineage receiver URL (e.g. http://localhost:5000/api/v1/lineage)",
+    )
+    openlineage_auth_token: str | None = Field(
+        default=None,
+        description="Bearer token sent with OpenLineage pushes, when the receiver needs one",
+    )
+
+    watsonx_host: str | None = Field(
+        default=None,
+        description="watsonx.data intelligence API host (e.g. api.ca-tor.dai.cloud.ibm.com)",
+    )
+    watsonx_api_key: str | None = Field(
+        default=None,
+        description="IBM Cloud user API key, exchanged for an IAM bearer token on each push",
+    )
+
     # ── Audit log watcher ─────────────────────────────────────────────────
     audit_log_bootstrap_servers: str | None = Field(
         default=None,

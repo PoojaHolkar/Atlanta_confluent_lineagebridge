@@ -37,6 +37,8 @@ from lineage_bridge.ui.extraction import (
     _run_glue_push,
     _run_google_push,
     _run_lineage_push,
+    _run_openlineage_push,
+    _run_watsonx_push,
     _save_selections_to_cache,
 )
 from lineage_bridge.ui.state import _GRAPH_VERSION
@@ -336,6 +338,8 @@ def _render_sidebar_publish() -> None:
         _glue_target(settings, graph),
         _datazone_target(settings, graph),
         _google_target(settings, graph),
+        _openlineage_target(settings, graph),
+        _watsonx_target(settings, graph),
     ]
 
     # Order: ready → no_nodes → not_configured (most actionable first).
@@ -580,6 +584,66 @@ def _glue_target(settings, graph: LineageGraph) -> _PublishTarget:
         render_options=_render_options,
         push_fn=_push,
         eligible_count=len(glue_tables),
+    )
+
+
+def _openlineage_target(settings, graph: LineageGraph) -> _PublishTarget:
+    """Publish row for the generic OpenLineage HTTP receiver (Marquez et al)."""
+    if not settings.openlineage_endpoint:
+        return _PublishTarget(
+            key="openlineage",
+            name="OpenLineage endpoint",
+            short_name="OpenLineage",
+            status="not_configured",
+            detail="Set LINEAGE_BRIDGE_OPENLINEAGE_ENDPOINT",
+        )
+    if not graph.nodes:
+        return _PublishTarget(
+            key="openlineage",
+            name="OpenLineage endpoint",
+            short_name="OpenLineage",
+            status="no_nodes",
+            detail="Graph is empty",
+        )
+
+    return _PublishTarget(
+        key="openlineage",
+        name="OpenLineage endpoint",
+        short_name="OpenLineage",
+        status="ready",
+        detail=settings.openlineage_endpoint,
+        push_fn=_run_openlineage_push,
+        eligible_count=len(graph.nodes),
+    )
+
+
+def _watsonx_target(settings, graph: LineageGraph) -> _PublishTarget:
+    """Publish row for IBM watsonx.data intelligence."""
+    if not settings.watsonx_host or not settings.watsonx_api_key:
+        return _PublishTarget(
+            key="watsonx",
+            name="IBM watsonx",
+            short_name="watsonx",
+            status="not_configured",
+            detail="Set LINEAGE_BRIDGE_WATSONX_HOST and _API_KEY",
+        )
+    if not graph.nodes:
+        return _PublishTarget(
+            key="watsonx",
+            name="IBM watsonx",
+            short_name="watsonx",
+            status="no_nodes",
+            detail="Graph is empty",
+        )
+
+    return _PublishTarget(
+        key="watsonx",
+        name="IBM watsonx",
+        short_name="watsonx",
+        status="ready",
+        detail=settings.watsonx_host,
+        push_fn=_run_watsonx_push,
+        eligible_count=len(graph.nodes),
     )
 
 

@@ -49,6 +49,9 @@ build-backend = "hatchling.build"
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+# our-work/watsonx_lineage_repro.py targets Python 3.9 so it runs unmodified
+# on any machine, including IBM support's. Repo-wide py311 rules do not apply.
+extend-exclude = ["our-work"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]

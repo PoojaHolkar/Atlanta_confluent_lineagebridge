@@ -71,7 +71,9 @@ class EnrichmentRequest(BaseModel):
 # ── push ────────────────────────────────────────────────────────────────
 
 
-PushProviderName = Literal["databricks_uc", "aws_glue", "google", "datazone"]
+PushProviderName = Literal[
+    "databricks_uc", "aws_glue", "google", "datazone", "openlineage", "watsonx"
+]
 
 
 class PushRequest(BaseModel):

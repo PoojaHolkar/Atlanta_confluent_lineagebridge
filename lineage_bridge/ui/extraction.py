@@ -142,6 +142,18 @@ def _run_datazone_push(settings, graph, params: dict):
     return _run_async(run_push(req, settings, graph, on_progress=_ui_progress("push_log")))
 
 
+def _run_openlineage_push(settings, graph, params: dict):
+    """Post OpenLineage events to the configured HTTP receiver. Returns PushResult."""
+    req = _push_request("openlineage", params)
+    return _run_async(run_push(req, settings, graph, on_progress=_ui_progress("push_log")))
+
+
+def _run_watsonx_push(settings, graph, params: dict):
+    """Post OpenLineage events to watsonx.data intelligence. Returns PushResult."""
+    req = _push_request("watsonx", params)
+    return _run_async(run_push(req, settings, graph, on_progress=_ui_progress("push_log")))
+
+
 def _run_extraction_with_params(settings, params: dict):
     """Run extraction with a params dict. Returns the graph or raises.
 

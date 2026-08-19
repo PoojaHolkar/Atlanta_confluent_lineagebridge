@@ -24,6 +24,7 @@ ENV/
 
 # Environment / secrets
 .env
+.env.bak
 .env_*
 .env.backup.*
 .env.*-demo
@@ -71,3 +72,6 @@ gcp-sa-key.json
 
 # MkDocs
 site/
+
+# Our work: terraform run logs
+our-work/terraform/*.log
