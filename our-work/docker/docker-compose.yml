@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# LineageBridge demo, in two containers.
+#
+#   terraform  provisions the Confluent Cloud environment
+#   ui         runs the LineageBridge Streamlit interface on port 8501
+#
+# Both use host networking, so the interface is on http://localhost:8501 with no
+# port mapping. Both read the repository's .env, which must exist first.
+#
+#   cd our-work/docker
+#   docker compose run --rm terraform                  # provision, 8-12 minutes
+#   docker compose up ui                               # then open :8501
+#   docker compose run --rm terraform destroy -auto-approve
+#
+# Neither service starts by default: each sits behind a profile, so a bare
+# `docker compose up` does nothing and cannot spend money by accident.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  terraform:
+    profiles: [terraform]
+    build:
+      context: .
+      dockerfile: Dockerfile.terraform
+    network_mode: host
+    env_file: ../../.env
+    # The module source is ../../infra/demos/modules/confluent-core, so the
+    # whole repository has to be mounted, not just our-work/terraform.
+    # terraform.tfstate lands back on the host, which is what makes a later
+    # `destroy` from outside Docker possible.
+    volumes:
+      - ../..:/workspace
+    working_dir: /workspace/our-work/terraform
+    # Keeps terraform.tfstate owned by you rather than root. Override with
+    # DOCKER_UID=$(id -u) DOCKER_GID=$(id -g) if your account is not 1000.
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    environment:
+      # The unprivileged user above has no home directory in the image.
+      - HOME=/tmp
+      - TF_IN_AUTOMATION=1
+
+  ui:
+    profiles: [ui]
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    network_mode: host
+    env_file: ../../.env
+    environment:
+      - LINEAGE_BRIDGE_EXTRACT_OUTPUT_PATH=/app/data/lineage_graph.json
+    volumes:
+      - ../../data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

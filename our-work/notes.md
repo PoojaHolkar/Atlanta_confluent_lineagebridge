@@ -635,12 +635,51 @@ Databricks and AWS credentials, because they provision the target catalog too.
 Ours is about 40 lines: a provider block, one call to the shared module, and the
 4 Flink statements copied from `uc/main.tf`. No second cloud account needed.
 
+### The Tableflow sink
+
+`main.tf` materialises `orders_v2`, `customers_v2` and `order_stats` as Iceberg
+tables, which adds 3 Tableflow table nodes and 3 `MATERIALIZES` edges. On by
+default; `enable_tableflow = false` removes it.
+
+Storage is `managed_storage {}`, meaning Confluent's own bucket, so the demo
+stays inside one Confluent account. The `uc` and `glue` demos use `byob_aws`
+instead and need an S3 bucket, an IAM role and a provider integration.
+
+Tableflow refuses the Cloud API key. It wants a key scoped to the Tableflow
+resource, which the `uc` and `glue` demos get by running `confluent api-key
+create --resource tableflow` between two `terraform apply` runs. That two-step
+dance is avoidable. The provider's own confluent-managed-storage example scopes
+a `confluent_api_key` with literals:
+
+```hcl
+managed_resource {
+  id          = "tableflow"
+  api_version = "tableflow/v1"
+  kind        = "Tableflow"
+  environment { id = ... }
+}
+```
+
+So the key is created in the same apply as everything else, and no Confluent CLI
+is needed. The service account needs a role binding first — `CloudClusterAdmin`
+is enough in the upstream example, and `module.core` grants both that and
+`EnvironmentAdmin` — hence `depends_on = [module.core]` on the key.
+
+No catalog integration is wired up. `confluent_catalog_integration` only speaks
+to Glue and Unity Catalog, both of which need a second cloud account. So
+`TableflowClient.extract()` produces the Tableflow table nodes and stops there,
+which is what the code already does when it finds no integration.
+
+`enriched_orders` stays out. The `LEFT JOIN` makes it a changelog topic, and the
+`glue` demo this configuration was copied from does not materialise it either.
+
 ### What the demo does not cover
 
 Both ends of the bridge. There is no source database, because datagen invents
-the records, and no sink, because we skipped Tableflow, Glue and Unity Catalog
-on purpose. What it exercises is the Kafka-internal middle. Bridging to external
-systems, the part that makes the demo impressive, is untested here.
+the records. The sink side now reaches Tableflow, but no further: Glue and Unity
+Catalog are still skipped on purpose. What it exercises is the Kafka-internal
+middle plus one materialisation hop. Bridging to an external catalog, the part
+that makes the demo impressive, is untested here.
 
 ## 5. Add the Terraform outputs to .env
 

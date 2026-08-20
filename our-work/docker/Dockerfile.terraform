@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Terraform, for provisioning the demo environment.
+#
+# Debian rather than Alpine, so the HashiCorp apt repository can give us a
+# pinned, signed Terraform build.
+# ─────────────────────────────────────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+ARG TERRAFORM_VERSION=1.9.8
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg jq unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Terraform (HashiCorp apt repository) ────────────────────────────────────
+RUN curl -fsSL https://apt.releases.hashicorp.com/gpg \
+      | gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com bookworm main" \
+      > /etc/apt/sources.list.d/hashicorp.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends "terraform=${TERRAFORM_VERSION}-*" \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 755 /usr/local/bin/entrypoint.sh
+
+WORKDIR /workspace/our-work/terraform
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["apply", "-input=false", "-auto-approve"]

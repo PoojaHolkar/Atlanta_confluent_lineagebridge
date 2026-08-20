@@ -60,6 +60,8 @@ Terraform creates:
 - a Flink compute pool
 - Flink jobs that create `enriched_orders` and `order_stats` topics
 - service-specific API keys for Kafka, Schema Registry and Flink
+- a Tableflow sink that materialises three topics as Iceberg tables (see
+  ‘The Tableflow sink’ below)
 
 ### Add the generated service credentials
 
@@ -92,6 +94,45 @@ terraform output -raw schema_registry_api_key_secret
 
 The current root module does not expose the Kafka key. Find it in
 `terraform.tfstate` under `module.core.confluent_api_key.kafka`.
+
+### The Tableflow sink
+
+Terraform materialises `orders_v2`, `customers_v2` and `order_stats` as Iceberg
+tables. Each one becomes a Tableflow table node in the graph, fed by a
+`MATERIALIZES` edge from its topic, which extends the lineage past Kafka.
+
+This is on by default and needs nothing extra from you. The tables are written
+to Confluent-managed storage, so there is no AWS, Google Cloud or Azure account
+involved and no bucket to create. Tableflow needs its own API key rather than
+the Cloud key, and this configuration creates that key for you.
+
+There is no catalog integration, because Glue, Unity Catalog and Snowflake Open
+Catalog all require a second cloud account. The graph therefore ends at the
+Tableflow table.
+
+To leave the sink out, add this to `our-work/terraform/terraform.tfvars`:
+
+```hcl
+enable_tableflow = false
+```
+
+Materialisation is not instant. `terraform apply` returns once Confluent accepts
+each topic, and the tables become queryable a few minutes later. Check with:
+
+```bash
+terraform output tableflow_tables
+```
+
+Extraction reads Tableflow through the Cloud API key, so `.env` needs no new
+entries. If you would rather the extractor used the narrower key, add it:
+
+```dotenv
+LINEAGE_BRIDGE_TABLEFLOW_API_KEY=<tableflow_api_key_id>
+LINEAGE_BRIDGE_TABLEFLOW_API_SECRET=<tableflow_api_key_secret>
+```
+
+`enriched_orders` is left out. Its `LEFT JOIN` makes it a changelog topic, and
+the Glue demo this configuration follows does not materialise it either.
 
 ### Tear down the Confluent environment
 
@@ -131,9 +172,68 @@ In LineageBridge:
 3. Explore the generated lineage graph.
 
 A typical extraction shows 13 nodes and 13 edges. These include topics,
-connectors, Flink jobs, schemas and an external dataset.
+connectors, Flink jobs, schemas and an external dataset. The Tableflow sink
+adds 3 more of each, for 16 and 16.
 
 Clicking a node focuses the graph on its neighbours. Select ‘Clear focus’ in
 the sidebar to restore the full graph.
 
 Stop LineageBridge with `Ctrl+C` in its terminal.
+
+## 3. Running it in Docker instead
+
+Sections 1 and 2 assume Terraform and uv on your own machine. `our-work/docker`
+does the same work in two containers, so the only prerequisite is Docker.
+
+- `terraform` provisions the Confluent Cloud environment.
+- `ui` runs the LineageBridge interface.
+
+Both read the repository's `.env`, so create that first, exactly as described in
+section 1. Both use host networking, so the interface appears on
+`http://localhost:8501` with no port mapping.
+
+Each service sits behind a Compose profile. A bare `docker compose up` therefore
+starts nothing, and cannot bill you by accident.
+
+```bash
+cd our-work/docker
+
+# Provision. Takes 8 to 12 minutes.
+docker compose run --rm terraform
+
+# Read the generated credentials into .env, as in section 1.
+docker compose run --rm terraform output
+docker compose run --rm terraform output -raw schema_registry_api_key_secret
+
+# Start the interface.
+docker compose up ui
+```
+
+The whole repository is mounted at `/workspace`, because the Terraform module
+source is a relative path outside `our-work/terraform`. One useful side effect:
+`terraform.tfstate` is written back to the host, so you can tear the environment
+down from inside or outside Docker later.
+
+The container runs as UID 1000 to keep that state file owned by you. If your
+account uses a different ID:
+
+```bash
+DOCKER_UID=$(id -u) DOCKER_GID=$(id -g) docker compose run --rm terraform
+```
+
+Anything after the service name goes straight to `terraform`:
+
+```bash
+docker compose run --rm terraform plan
+docker compose run --rm terraform destroy -auto-approve
+```
+
+The Tableflow sink needs no extra credentials: Terraform creates its API key.
+
+Two caveats. Host networking behaves differently on Docker Desktop for macOS and
+Windows, where it has to be enabled in settings; without it, add
+`ports: ["8501:8501"]` to the `ui` service and drop `network_mode: host` from
+both. And `docker compose run` gives Terraform no TTY by default, which is why
+the provisioning command already implies `-auto-approve`: it will not stop to
+ask you to confirm the plan. Run `docker compose run --rm terraform plan` first
+if you want to read it.
