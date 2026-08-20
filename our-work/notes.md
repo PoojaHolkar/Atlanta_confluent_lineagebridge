@@ -11,21 +11,352 @@ Read this file first. It is the only document here.
 | file | what it is |
 |---|---|
 | `notes.md` | this file: findings, runbook, teardown |
-| `watsonx_lineage_repro.py` | standalone script that reproduces the watsonx ingestion failure. Standard library only |
+| `watsonx_lineage_repro.py` | standalone script that reproduces the watsonx ingestion failure. uv fetches its requests dependency |
 | `sample_events.json` | a real batch of OpenLineage events we extracted, useful for testing a push without a Confluent account |
 | `terraform/` | a Confluent-only demo environment, so you can build a graph to push |
 
 The code changes themselves are not here. They live in the main package, listed
 under "what we added" below.
 
-## Current status
+## Current watsonx handoff
 
-The push code works. Every layer we control succeeds: authentication,
-authorization, routing and payload validation. The watsonx service then returns
-HTTP 500 "could not be persisted" and the events are not stored.
+No valid event has reached storage. The reproduction proves that IAM
+authentication, lineage permissions, routing and schema validation work. It
+tests 2 independent watsonx accounts with the same generated payload.
 
-That is an IBM-side problem. `watsonx_lineage_repro.py` demonstrates it in four
-steps and prints trace IDs to give to IBM support.
+Run the EU-DE account with:
+
+```bash
+uv run --with requests --env-file our-work/.env \
+  our-work/watsonx_lineage_repro.py
+```
+
+Run Pooja's Toronto account with:
+
+```bash
+uv run --with requests --env-file our-work/.env \
+  our-work/watsonx_lineage_repro.py --profile ca-tor
+```
+
+The ignored `our-work/.env` contains both test profiles. The script sends an
+intentional invalid request first. HTTP 400 and `PASS` are expected for this
+control. Only failures in the valid single and batch checks matter.
+
+Current results from 20 August 2026:
+
+| Profile | Account setup known to us | Valid single | Valid batch |
+|---|---|---:|---:|
+| EU-DE | Interface says ready, but COS credentials API returns HTTP 503 `WKC server error` | HTTP 503 `WKC server error` | HTTP 503 `WKC server error` |
+| Toronto | COS credentials API returns a configured bucket | HTTP 500 `InputMetadata ... could not be persisted` | HTTP 500 `InputMetadata ... could not be persisted` |
+
+Do not describe Toronto as going further through the pipeline. The response
+wording suggests a persistence problem, but it does not prove the order of
+internal operations. The leading hypotheses are:
+
+- Toronto has a stored Data Lineage Cloud Object Storage record, but the bucket,
+  stored API key or IBM persistence service might not work
+- EU-DE has completed the visible storage setup, but the service cannot even
+  retrieve that setup because its Watson Knowledge Catalog dependency returns
+  HTTP 503
+- the shared payload is unlikely to be the cause because both schema validators
+  accept it and the accounts return different server errors
+
+WKC means Watson Knowledge Catalog in this context. It does not mean Knowledge
+Center.
+
+The documented Processed OpenLineage events view is not visible in the EU-DE
+interface. We also could not find the documented OpenLineage `.zip` route in a
+project metadata-import workflow. Activity Tracker was not already configured,
+so it cannot provide historical details for these failures. Do not repeat these
+interface searches unless the account features change.
+
+The script prints the useful server correlation values for every failed valid
+request: JSON trace, response date, `x-global-transaction-id`, `server-timing`
+and `CF-RAY`. These identifiers do not expose internal error details to the
+customer. IBM can use them to find the service logs.
+
+The next investigation should focus on the EU-DE account's internal Data
+Lineage and Watson Knowledge Catalog provisioning. For Toronto, verify whether
+the stored lineage COS credential can still write to its configured bucket.
+Creating more caller-side payload variants is unlikely to help either account.
+
+### Final EU-DE prerequisite audit
+
+The final audit on 20 August 2026 found no missing documented prerequisite.
+The account passes every check that we can perform outside IBM's internal
+services:
+
+- IBM lists OpenLineage import as available in Frankfurt
+- the trial plan includes Data Lineage
+- the API key belongs to a user, as the HTTP ingestion documentation requires
+- the user has the Manager service role, which includes Manage data lineage
+- the Data Lineage settings page says that lineage is ready
+- the default catalog and Platform assets catalog exist in EU-DE and are active
+- both catalog storage records are healthy
+- the dedicated lineage bucket exists and is readable through the COS API
+- the lineage bucket has no firewall or unusual storage configuration
+- the account has all 38 IBM-provided OpenLineage namespace mappings
+
+The correct regional Catalog API host is
+`https://api.eu-de.dataplatform.cloud.ibm.com`. Checks against the unqualified
+`api.dataplatform.cloud.ibm.com` reach the Dallas deployment and show no EU-DE
+catalogs. This is expected and is not the lineage failure. On the EU-DE host:
+
+```text
+default catalog:         01a01ecf-24a1-74bb-98a1-a3179e428df8, active
+Platform assets catalog: 01a01edf-0981-750a-a990-a2146696fd0a, active
+Catalog heartbeat:       HTTP 200, status ok
+```
+
+The dedicated lineage bucket is also healthy when accessed directly:
+
+```text
+bucket: cloudobjectstoragebucket-lineage-5adf6770982e444e9330389383dd4e
+COS instance: 0053a967-b35c-4dae-b0e6-3e5f18f4017e
+list buckets: HTTP 200
+list lineage bucket objects: HTTP 200
+```
+
+We also sent a valid event using only built-in namespace mappings:
+
+```text
+job namespace: airflow://lineage-bridge-demo
+dataset namespace: kafka://lineage-bridge-demo
+result: HTTP 503 WKC server error
+trace: 41d7ff76-c3c8-4e3d-82fd-8c84aaeadb8b
+x-global-transaction-id: c5516fb2-7654-4e63-93fd-01608dbeb50d
+```
+
+This rules out the synthetic namespace as the cause. Mapping rules affect how
+accepted events are represented and connected. They do not explain why the
+lineage service cannot retrieve its own COS configuration.
+
+The latest normal reproduction produced these IDs:
+
+```text
+lineage COS configuration GET:
+  trace: 09d8d556-8456-4814-af1e-5056c5d1439e
+  x-global-transaction-id: 52761d8e-510b-4880-88f8-01b8a3d3e39c
+valid single event:
+  trace: 2c218b43-aa6f-42d3-a952-89aa7d6915e7
+valid batch:
+  trace: e28d1a98-4f4f-43f8-9897-486e62579b7e
+```
+
+The remaining fault is inside the Data Lineage service's WKC integration. WKC
+itself is reachable and the EU-DE catalogs are healthy, but
+`GET /gov_lineage/v2/cos_bucket_credentials` still returns HTTP 503. The likely
+fault is a missing or broken internal tenant link or credential record.
+
+Do not spend more time on projects, storage delegation, service-to-service
+authorization, payload facets, event timing or custom mappings. A project is
+needed for `.zip` metadata import, not HTTP ingestion. Service-to-service
+authorization is needed when watsonx.data is the producer, not for this custom
+HTTP caller.
+
+We attempted the final destructive experiment with the user's explicit
+approval. DELETE did not confirm a change. It returned HTTP 503 before the
+client could safely recreate the record:
+
+```text
+DELETE /gov_lineage/v2/cos_bucket_credentials
+trace: e3a832a5-435a-4426-a0e8-f3063992a6ae
+x-global-transaction-id: 64191a5a-91e9-4047-a9e1-8cf4fd618e2d
+```
+
+Because this is a disposable trial account, we also made one direct CREATE
+request with the existing bucket, COS instance and test API key. It failed with
+the same WKC error:
+
+```text
+POST /gov_lineage/v2/cos_bucket_credentials
+trace: 9bd6a463-37dd-43d4-8fb4-df0c1e326baa
+x-global-transaction-id: fdc4c4fd-cf98-4c9f-b6f6-0d2ba1ec153f
+```
+
+IBM did not confirm either deletion or creation. The COS bucket itself was not
+deleted. A final normal repro still returned HTTP 503 for the credential GET,
+single event and batch. Its latest traces were:
+
+```text
+credential GET: 87f6d135-ca5f-4020-8507-6f180252efea
+single event:   ed8a0c8d-2ed1-41bf-b3f4-1b7b9f62c65b
+batch:          7b81c254-16bd-4ec8-b4b9-7249d4fe30a8
+```
+
+Do not repeat the credential reset. GET, DELETE and CREATE all fail at the same
+WKC dependency. The tenant cannot repair this record through the public API.
+
+## EU-DE investigation log from 20 August 2026
+
+The EU-DE test has a different failure from the earlier Toronto test. A valid
+event returns HTTP 503 `WKC server error`. The event passes schema validation.
+
+The reproduction script's HTTP 400 is an intentional control request. Step 2
+sends `{"nonsense": true}` and expects the validator to reject it. The script
+now labels this response as `PASS`. The valid requests in steps 3 and 4 are the
+ones that matter.
+
+Verified results for account `2a3073fe65c54a178927f4107e0be294`:
+
+- IAM authentication succeeds
+- the single valid event returns HTTP 503 `WKC server error`
+- the valid batch returns HTTP 503 `WKC server error`
+- lineage statistics, activity and namespace mapping requests return HTTP 200
+- the watsonx.data intelligence service instance is active in EU-DE
+- the Cloud Object Storage service instance is active
+- the account has a `Sample trial experience catalog`
+- `GET /v2/catalogs/default` returns HTTP 404 `Default catalog not found`
+
+The missing default catalog might have caused the WKC dependency failure. We
+created one to test this theory. The dedicated Cloud Object Storage bucket
+`lineage-bridge-default-catalog-2a3073fe65c5` now exists in `eu-de-smart` under
+COS instance `0053a967-b35c-4dae-b0e6-3e5f18f4017e`.
+
+The API responses established these requirements:
+
+- the SaaS environment rejects the documented internal `assetfiles` bucket type
+- the request must provide a real Cloud Object Storage bucket
+- the request must provide read and write credentials for that bucket
+- the existing `WDP-Catalog-ManagerV2` credential has the COS `Manager` role
+- the catalog service still reports that the new bucket does not exist when we
+  provide its HMAC keys, endpoint, location and full resource CRN
+
+The HMAC credential can read the new bucket. We copied the working sample
+catalog's bucket structure and created the default catalog successfully:
+
+    default catalog id: 01a01ecf-24a1-74bb-98a1-a3179e428df8
+
+Creating the default catalog did not fix ingestion. The single endpoint, batch
+endpoint and a `START`-only event all still return HTTP 503 `WKC server error`.
+This proves the failure happens before Watsonx stores a valid event. It is not
+triggered by `COMPLETE` event processing.
+
+IAM and plan checks also pass:
+
+- the API key owner has account-wide `Administrator` and `Manager` roles
+- the watsonx.data intelligence instance is active
+- the instance uses the `trial` plan, which includes Data Lineage
+
+The user completed Data Lineage setup in the EU-DE interface on 20 August 2026.
+The settings page now says `Lineage is ready to use`. It shows a configured
+Cloud Object Storage bucket and a created Platform asset catalog.
+
+We reran the unchanged reproduction script immediately after setup. The valid
+single and batch requests still returned HTTP 503 `WKC server error`. Their
+support IDs were `1603736b-07e8-4bf2-bfdb-d93425441f99` and
+`a5103da5-3096-4769-aa7a-9aba9655ff49`.
+
+The visible account-level setup is complete. Waiting, refreshing the interface
+and rerunning the script did not change the result. The remaining likely cause
+is a broken or incomplete Watson Knowledge Catalog dependency inside IBM.
+
+The live IBM scanner API exposes a read-only storage check:
+
+```text
+GET /gov_lineage/v2/cos_bucket_credentials
+```
+
+This endpoint returns the lineage bucket, COS endpoint and resource instance ID
+without returning the stored API key. The reproduction script runs this check
+before sending events.
+
+The EU-DE check returns HTTP 503 `WKC server error`, despite the interface saying
+that lineage is ready. The 20 August 2026 check produced:
+
+```text
+trace: 8a3fccb0-6a26-4fbd-8d43-da0eecbecae2
+x-global-transaction-id: be7667ff-9d8e-4823-926b-30de2fb7e62e
+```
+
+The Toronto check returns HTTP 200 and this stored configuration:
+
+```text
+bucket: cos665003iqm3bucket-lineage-8bc38e7833354a06b1af2fc4df01cee0
+endpoint: s3.ca-tor.cloud-object-storage.appdomain.cloud
+COS resource instance: b5887ceb-1674-4394-8fbc-6e962ace32f7
+```
+
+The missing URL scheme is allowed. IBM's live schema uses the same host-only
+form in its field example. Toronto therefore has a storage configuration
+record, but that does not prove its saved API key can still write to the bucket.
+
+The ignored `our-work/.env` contains the EU-DE host and test API key under the
+same `LINEAGE_BRIDGE_WATSONX_*` names used by the application. Run the repro
+with:
+
+```bash
+uv run --with requests --env-file our-work/.env \
+  our-work/watsonx_lineage_repro.py
+```
+
+The script labels the intentional HTTP 400 as `PASS`. It labels valid request
+failures as `FAIL` and exits with status 1 when ingestion does not work.
+
+The script now uses `requests` instead of a custom `urllib` wrapper. uv fetches
+the dependency at runtime through `--with requests`. A live run of this version
+produced the same HTTP 503 result. The latest support IDs are
+`dfb6044c-a50b-4dc3-9917-6dd3acef1cde` and
+`d2d84cad-5219-4c2a-a858-1dfaf860a27d`.
+
+The ignored `our-work/.env` also contains the older Toronto host and Pooja's
+test API key. Select that account with:
+
+```bash
+uv run --with requests --env-file our-work/.env \
+  our-work/watsonx_lineage_repro.py --profile ca-tor
+```
+
+We sent the same event shape to both accounts on 20 August 2026. Both API keys
+authenticate, and both services reject the intentional schema control as
+expected. The valid requests fail at different backend stages:
+
+| Profile | Valid single | Valid batch | Error |
+|---|---:|---:|---|
+| EU-DE test account | HTTP 503 | HTTP 503 | `WKC server error` |
+| Toronto Pooja account | HTTP 500 | HTTP 500 | `InputMetadata ... could not be persisted` |
+
+Both accounts have server-side failures with different messages. The wording
+is consistent with an unavailable Watson Knowledge Catalog dependency in
+EU-DE and a storage configuration problem in Toronto. It does not prove that
+one request progressed further than the other.
+
+The HTTP response headers provide more identifiers for IBM support. The script
+now prints `x-global-transaction-id`, `Date`, `server-timing` and `CF-RAY` for a
+failed check. The JSON trace remains the main support ID.
+
+IBM's SaaS documentation describes 2 OpenLineage views that are not obvious in
+the interface:
+
+- the processed-events dashboard is under Data, Data lineage, Map lineage, then
+  Map OpenLineage
+- manual `.zip` upload is not on the Data Lineage page; it is an external input
+  in a project's metadata import job
+
+Neither documented interface route was visible in the EU-DE account. The valid
+requests are not stored, so the processed-events dashboard might not list them
+even if that view becomes available.
+
+### IBM SDK and API findings
+
+IBM does not publish a watsonx.data intelligence SDK for writing lineage. The
+IBM Manta Data Lineage API is a REST API. Its OpenLineage write operation is the
+same `/gov_lineage/v2/lineage_events/openlineage` endpoint used by the repro.
+
+IBM's reference to Java and JWT clients means upstream OpenLineage producer
+libraries. Those libraries serialize an event and send it to the same HTTP
+endpoint. Trying one would change the caller but not the IBM storage path. It
+would only be useful if IBM rejected our payload, which it does not.
+
+The IBM Manta API also exposes configuration and graph-reading operations. The
+new COS credentials check is the most useful one for this failure. Do not try
+the API's POST or DELETE credential operations without an explicit decision:
+they change the tenant-wide lineage storage configuration.
+
+IBM's Manta API documentation states that HTTP 500 and 503 responses are logged
+as critical service failures. The current errors are therefore the class of
+failure IBM expects to diagnose from its internal logs, not client-side schema
+errors.
 
 ## What LineageBridge is, and is not
 
@@ -175,8 +506,8 @@ dropped. The push runs cleanly through
 ### Running the reproduction on its own
 
 ```bash
-python3 our-work/watsonx_lineage_repro.py --api-key <IBM Cloud user API key> \
-  --host api.ca-tor.dai.cloud.ibm.com
+uv run --with requests --env-file our-work/.env \
+  our-work/watsonx_lineage_repro.py
 ```
 
 Add `--events our-work/sample_events.json` to send our real events instead of
@@ -370,7 +701,8 @@ so it does not load into the interface. It is the output of a push, captured
 from a real extraction:
 
 ```bash
-python3 our-work/watsonx_lineage_repro.py --api-key <key> \
+uv run --with requests --env-file our-work/.env \
+  our-work/watsonx_lineage_repro.py \
   --events our-work/sample_events.json
 ```
 
