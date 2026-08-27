@@ -25,21 +25,18 @@ cd lineage-bridge
 ### Add your Confluent Cloud credentials
 
 Create an organization-level Cloud API key in Confluent Cloud. Use the
-‘My account’ scope. A cluster-level key will not provision the demo.
+'My account' scope. A cluster-level key will not provision the demo.
 
-Copy the example environment file:
+Create `our-work/terraform/terraform.tfvars` with your credentials:
 
-```bash
-cp .env.example .env
-chmod 600 .env
+```hcl
+confluent_cloud_api_key    = "<organization-level-key>"
+confluent_cloud_api_secret = "<organization-level-secret>"
+cloud_region               = "us-east-1"
+enable_tableflow           = true
 ```
 
-Set these values in `.env`:
-
-```dotenv
-LINEAGE_BRIDGE_CONFLUENT_CLOUD_API_KEY=<organization-level-key>
-LINEAGE_BRIDGE_CONFLUENT_CLOUD_API_SECRET=<organization-level-secret>
-```
+This file is git-ignored and never committed.
 
 ### Create the demo environment
 
@@ -59,41 +56,36 @@ Terraform creates:
 - 2 Datagen source connectors
 - a Flink compute pool
 - Flink jobs that create `enriched_orders` and `order_stats` topics
-- service-specific API keys for Kafka, Schema Registry and Flink
+- service-specific API keys for Kafka, Schema Registry, Flink and Tableflow
 - a Tableflow sink that materialises three topics as Iceberg tables (see
-  ‘The Tableflow sink’ below)
+  'The Tableflow sink' below)
 
-### Add the generated service credentials
+### Generate the .env file
 
-After Terraform finishes, run:
-
-```bash
-terraform output
-```
-
-Add the generated values to the `.env` file in the repository root:
-
-```dotenv
-LINEAGE_BRIDGE_SCHEMA_REGISTRY_ENDPOINT=<schema_registry_rest_endpoint>
-LINEAGE_BRIDGE_SCHEMA_REGISTRY_API_KEY=<schema_registry_api_key_id>
-LINEAGE_BRIDGE_SCHEMA_REGISTRY_API_SECRET=<schema_registry_api_key_secret>
-
-LINEAGE_BRIDGE_FLINK_API_KEY=<flink_api_key_id>
-LINEAGE_BRIDGE_FLINK_API_SECRET=<flink_api_key_secret>
-
-LINEAGE_BRIDGE_KAFKA_API_KEY=<kafka_api_key_id>
-LINEAGE_BRIDGE_KAFKA_API_SECRET=<kafka_api_key_secret>
-```
-
-Terraform hides sensitive outputs in the summary. Read an individual secret
-with `terraform output -raw`, for example:
+After Terraform finishes, run this from the repository root:
 
 ```bash
+cd ../..
+make gen-env
+```
+
+This reads all generated credentials from Terraform outputs and writes a
+complete `.env` at the repository root. You do not need to copy any values
+manually. The `.env` includes:
+
+- the org-level Cloud API key (from `terraform.tfvars`)
+- the cluster-scoped Kafka API key (`LINEAGE_BRIDGE_CLUSTER_CREDENTIALS`)
+- Schema Registry endpoint and API key
+- Flink API key
+- Tableflow API key
+
+To inspect individual values:
+
+```bash
+cd our-work/terraform
 terraform output -raw schema_registry_api_key_secret
+terraform output -raw kafka_api_key_secret
 ```
-
-The current root module does not expose the Kafka key. Find it in
-`terraform.tfstate` under `module.core.confluent_api_key.kafka`.
 
 ### The Tableflow sink
 
@@ -137,15 +129,26 @@ the Glue demo this configuration follows does not materialise it either.
 ### Tear down the Confluent environment
 
 Complete this step only after you finish the LineageBridge exercise in section 2.
-Terraform will show everything it plans to delete before asking for
-confirmation. Destroy the demo resources as soon as the exercise ends:
+Destroy the demo resources as soon as the exercise ends.
+
+From the repository root:
+
+```bash
+make demo-confluent-down
+```
+
+This runs `terraform destroy` and removes the generated `.env`. Or run
+Terraform directly:
 
 ```bash
 cd our-work/terraform
 terraform destroy
 ```
 
-Enter `yes` only after checking that the plan contains the demo resources.
+> **Note:** Flink-created topics (`lineage_bridge.enriched_orders`,
+> `lineage_bridge.order_stats`) may survive `terraform destroy` because Flink
+> creates them as a side effect. If they appear in the Confluent UI after
+> destroy, delete them manually before reprovisioning.
 
 ## 2. Set up LineageBridge
 
@@ -160,7 +163,13 @@ uv pip install -e ".[dev]"
 Start the LineageBridge interface:
 
 ```bash
-.venv/bin/streamlit run lineage_bridge/ui/app.py
+uv run streamlit run lineage_bridge/ui/app.py
+```
+
+Or use the Make shortcut which also ensures the Cloud API key is set:
+
+```bash
+make ui
 ```
 
 Open <http://localhost:8501> if your browser does not open automatically.
@@ -188,9 +197,9 @@ does the same work in two containers, so the only prerequisite is Docker.
 - `terraform` provisions the Confluent Cloud environment.
 - `ui` runs the LineageBridge interface.
 
-Both read the repository's `.env`, so create that first, exactly as described in
-section 1. Both use host networking, so the interface appears on
-`http://localhost:8501` with no port mapping.
+Both read the repository's `.env`. Generate it with `make gen-env` after
+`terraform apply` as described in section 1. Both use host networking, so the
+interface appears on `http://localhost:8501` with no port mapping.
 
 Each service sits behind a Compose profile. A bare `docker compose up` therefore
 starts nothing, and cannot bill you by accident.
@@ -201,9 +210,8 @@ cd our-work/docker
 # Provision. Takes 8 to 12 minutes.
 docker compose run --rm terraform
 
-# Read the generated credentials into .env, as in section 1.
-docker compose run --rm terraform output
-docker compose run --rm terraform output -raw schema_registry_api_key_secret
+# Generate .env from Terraform outputs (run from repository root).
+cd ../.. && make gen-env && cd our-work/docker
 
 # Start the interface.
 docker compose up ui
