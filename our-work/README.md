@@ -69,6 +69,14 @@ cd ../..
 make gen-env
 ```
 
+Or directly with uv:
+
+```bash
+cd ../..
+cd our-work/terraform && terraform output -json > /tmp/tf_out.json && cd ../..
+uv run python3 our-work/scripts/gen-env.py our-work/terraform/terraform.tfvars /tmp/tf_out.json .env
+```
+
 This reads all generated credentials from Terraform outputs and writes a
 complete `.env` at the repository root. You do not need to copy any values
 manually. The `.env` includes:

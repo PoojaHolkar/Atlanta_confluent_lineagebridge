@@ -99,7 +99,7 @@ docker-down: ## Stop all Docker services
 gen-env: ## Write .env from our-work/terraform outputs (run after terraform apply)
 	@echo "▸ Generating .env from Terraform outputs..."
 	@cd $(TF_DIR) && terraform output -json > /tmp/tf_out.json
-	@python3 our-work/scripts/gen-env.py $(TF_DIR)/terraform.tfvars /tmp/tf_out.json .env
+	@uv run python3 our-work/scripts/gen-env.py $(TF_DIR)/terraform.tfvars /tmp/tf_out.json .env
 	@rm -f /tmp/tf_out.json
 
 demo-confluent-up: ## Provision Confluent-only demo (our-work/terraform) and write .env
