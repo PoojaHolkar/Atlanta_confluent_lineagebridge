@@ -1,6 +1,8 @@
 .DEFAULT_GOAL := help
 
-.PHONY: install quickstart extract watch api openapi ui test lint format clean docker-build docker-extract docker-watch docker-ui docker-down demo-setup demo-up demo-down demo-uc-up demo-uc-down demo-glue-up demo-glue-down demo-bq-up demo-bq-down docs-serve docs-build docs-deploy docs-install help
+.PHONY: install quickstart extract watch api openapi ui test lint format clean docker-build docker-extract docker-watch docker-ui docker-down demo-setup demo-up demo-down demo-uc-up demo-uc-down demo-glue-up demo-glue-down demo-bq-up demo-bq-down demo-confluent-up demo-confluent-down gen-env docs-serve docs-build docs-deploy docs-install help
+
+TF_DIR := our-work/terraform
 
 install: ## Install project with dev dependencies
 	@test -x .venv/bin/python || uv venv
@@ -91,6 +93,28 @@ docker-ui: ## Start UI via Docker
 
 docker-down: ## Stop all Docker services
 	$(COMPOSE) --profile extract --profile ui --profile watch down
+
+# ── Confluent-only demo (our-work/terraform) ───────────────────────────────
+
+gen-env: ## Write .env from our-work/terraform outputs (run after terraform apply)
+	@echo "▸ Generating .env from Terraform outputs..."
+	@cd $(TF_DIR) && terraform output -json > /tmp/tf_out.json
+	@python3 our-work/scripts/gen-env.py $(TF_DIR)/terraform.tfvars /tmp/tf_out.json .env
+	@rm -f /tmp/tf_out.json
+
+demo-confluent-up: ## Provision Confluent-only demo (our-work/terraform) and write .env
+	@echo "▸ Initializing Terraform..."
+	cd $(TF_DIR) && terraform init -input=false
+	@echo "▸ Applying..."
+	cd $(TF_DIR) && terraform apply -auto-approve
+	$(MAKE) gen-env
+	$(MAKE) ui
+
+demo-confluent-down: ## Tear down Confluent-only demo and delete .env
+	@echo "▸ Destroying Terraform resources..."
+	cd $(TF_DIR) && terraform destroy -auto-approve
+	@rm -f .env
+	@echo "  .env removed"
 
 # ── Demo Infrastructure (per catalog) ─────────────────────────────────────
 
