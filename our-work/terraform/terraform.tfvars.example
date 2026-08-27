@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is git-ignored — never commit it.
+
+confluent_cloud_api_key    = "YOUR_ORG_LEVEL_API_KEY"
+confluent_cloud_api_secret = "YOUR_ORG_LEVEL_API_SECRET"
+cloud_region               = "us-east-1"
+enable_tableflow           = true
